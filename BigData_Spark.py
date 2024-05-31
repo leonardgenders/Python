@@ -6,7 +6,7 @@ from pyspark import SparkConf, SparkContext
 conf = SparkConf().setMaster("local").setAppName("MinPrice")
 sc = SparkContext(conf = conf)
 
-allPricesRDD = sc.textFile("NYSE_H.csv")
+allPricesRDD = sc.textFile("stock_info.csv")
 header = allPricesRDD.first()
 pricesRDD = allPricesRDD.filter(lambda line: line != header)
 
@@ -30,7 +30,7 @@ from pyspark import SparkConf, SparkContext
 conf = SparkConf().setMaster("local").setAppName("MinPrice")
 sc = SparkContext(conf = conf)
 
-allPricesRDD = sc.textFile("NYSE_H.csv")
+allPricesRDD = sc.textFile("stock_info.csv")
 header = allPricesRDD.first()
 pricesRDD = allPricesRDD.filter(lambda line: line != header)
 
@@ -53,7 +53,7 @@ conf = SparkConf().setMaster("local").setAppName("TotalSpending")
 sc = SparkContext(conf = conf)
 
 # read in the file and remove the header
-allCustomersRDD = sc.textFile("custSpendingH.csv")
+allCustomersRDD = sc.textFile("customerinfo.csv")
 header = allCustomersRDD.first()
 customersRDD = allCustomersRDD.filter(lambda line: line != header)
 
@@ -81,7 +81,7 @@ from pyspark import SparkConf, SparkContext
 conf = SparkConf().setMaster("local").setAppName("WordCountOver1")
 sc = SparkContext(conf = conf)
 
-lines = sc.textFile("blog.txt")
+lines = sc.textFile("posting.txt")
 
 # split by spaces because txt file not csv, split by spaces not commas
 words = lines.flatMap(lambda x: x.split())
