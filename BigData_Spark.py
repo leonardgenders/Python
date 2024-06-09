@@ -164,3 +164,118 @@ new_joinDF.createOrReplaceTempView("ratingsview")
 # HAVING COUNT instead of WHERE COUNT, can use alias 'AverageRating' for ORDER BY and complete in descending order (large to small)
 movieRatingInfoDF = spark.sql("SELECT MovieName, ROUND((SUM(rating)/COUNT(rating)), 4) AS AverageRating, COUNT(rating) AS NumberOfRatings \
 FROM ratingsview GROUP BY MovieName HAVING COUNT (rating) >= 200 ORDER BY AverageRating DESC").show()
+
+
+# Challenge 7: Write a Spark program that:
+# Create an RDD named accountsRDD that captures the data from the accounts.csv file.
+# Create an RDD named zipCodesRDD that captures the data from the us_zip_codes.csv file.
+# Select first name, last name, and zip code from accountsRDD and store them in filteredAccRDD.
+# Select zip code, city, and state from zipCodesRDD and store them in filteredZipCodesRDD.
+# Create a data frame named accountsDF based on filteredAccRDD. Make sure the column names follow the ones in the original data set.
+# Create a data frame named zipCodesDF based on filteredZipCodesRDD. Make sure the column names follow the ones in the original data set.
+# Create a new data frame from accountsDF with just the first_name and last_name columns and only include users whose last name begins with the letter B. Display the first 10 records.
+# Create a new data frame that joins accountsDF and zipCodesDF by the zip code. The columns should be in the following order: first_name, last_name, city, state, zip, and the rows should be sorted based on last name. Display the first 10 records.
+# Calculate the number of accounts in each city and sort them by the count in a descending order. Display the first 10 records.
+
+from pyspark.sql import SparkSession
+from pyspark import SparkContext
+from pyspark.sql.types import *
+sc = SparkContext.getOrCreate()
+spark = SparkSession.builder.getOrCreate()
+
+def mapperAccounts(line):
+  fields = line.split(',')
+  return(str(fields[0]), str(fields[1]), int(fields[4]))
+
+def mapperZips(line_zip):
+  fields_zip = line_zip.split(',')
+  return(int(fields_zip[0]), str(fields_zip[1]), str(fields_zip[2]))
+
+# Create an RDD named accountsRDD that captures the data from accounts.csv
+accountsRDD = sc.textFile("accounts.csv")
+# Select first name, last name, and zip code from accountsRDD and store them in filteredAccRDD
+filteredAccRDD = accountsRDD.map(mapperAccounts)
+
+# Create an RDD named zipCodesRDD that captures the data from the us_zip_codes.csv file
+allzipCodesRDD = sc.textFile("us_zip_codes.csv")
+# Remove the header
+header = allzipCodesRDD.first()
+zipCodesRDD = allzipCodesRDD.filter(lambda line: line != header)
+# Select zip code, city, and state from zipCodesRDD and store them in filteredZipCodesRDD
+filteredZipCodesRDD = zipCodesRDD.map(mapperZips)
+
+# Create a df named accountsDF based on filteredAccRDD
+accSchema = StructType([StructField("first_name", StringType(), True), \
+                        StructField("last_name", StringType(), True), \
+                        StructField("zip", IntegerType(), True)])
+accountsDF = spark.createDataFrame(filteredAccRDD, accSchema)
+accountsDF.show(5)
+
+
+# Create a df named zipCodesDF based on filteredZipCodesRDD
+zipSchema = StructType([StructField("zip", IntegerType(), True), \
+                        StructField("city", StringType(), True), \
+                        StructField("state", StringType(), True)])
+zipCodesDF = spark.createDataFrame(filteredZipCodesRDD, zipSchema)
+zipCodesDF.show(5)
+
+# Create a new df from accountsDF with just the first_name and last_name cols
+# only include users whose last name begins with the letter B, display first 10 records
+# using SQL regular expression for those that start with capital B, drop the zip col, show first 10
+accountsDF.where("last_name REGEXP '^B'").drop('zip').show(10)
+
+# Create a new df that joins accountsDF and zipCodesDF by the zip code. The cols should be in the following 
+# order: first_name, last_name, city, state, zip, and the rows should be sorted based on last name.
+# Display the first 10 records
+new_joinDF = accountsDF.join(zipCodesDF, "zip", "left_outer")
+# split out seperately after the join and filter out NAs from city?
+new_joinDF.select('first_name', 'last_name', 'city', 'state', 'zip').where(new_joinDF.city.isNotNull()).orderBy('last_name').show(10)
+
+
+# Calculate the number of accounts in each city and sort them by the count in a descending order.
+# Display the first 10 records.
+new_joinDF.filter(new_joinDF.city.isNotNull()).groupBy('city').count().sort('count', ascending=False).show(10)
+
+
+# Challenge 8: Write a Spark program that conducts the following:
+# Find all flights whose distance is greater than 600 miles and had an early departure of at least 10 minutes. Display the first 10 records.
+# Find all flights between San Francisco (SFO) and Chicago (ORD) with at least a two-hour delay. Sort the data frame by the delay in descending order. Display the first 10 records.
+
+from pyspark.sql import SparkSession
+from pyspark import SparkContext
+from pyspark.sql.types import *
+sc = SparkContext.getOrCreate()
+spark = SparkSession.builder.getOrCreate()
+
+# load the departuredelays.csv file into a df
+departureDF = spark.read.format("csv").option("header", "true").load("departuredelays.csv")
+departureDF.show(10)
+
+# find all flights whose distance is greater than 600 miles and had an early departure
+# of at least 10 minutes. Display the first 10 records.
+departureDF.createOrReplaceTempView("departureDFview1")
+miles600 = spark.sql("SELECT * FROM departureDFview1 WHERE distance > 600 AND delay <= -10")
+# select the cols in order as required by example output
+miles600.select('distance', 'delay', 'origin', 'destination').show(10)
+
+
+# Find all flights between San Francisco (SFO) and Chicago(ORD) with at least a two-hour delay
+# Sort the df by the delay in descending order. Display the first 10 records.
+departureDF.createOrReplaceTempView("departureDFview2")
+# need delay col as integer, not sorting numerically
+sfoToOrd = spark.sql("SELECT *, CAST(delay AS INT) as int_delay FROM departureDFview2 WHERE origin == 'SFO' AND destination == 'ORD' AND delay >= 120")
+sfoToOrd.select('date', 'int_delay', 'origin', 'destination').withColumnRenamed("int_delay", "delay").sort('delay', ascending=False).show(10)
+
+
+# Chellenge 9: We would like to make our analysis more user-friendly. Please create a new data frame by implementing the following:
+# Label all flights, regardless of origin and destination, with an indication of the delays they experienced. Use the labels Very Long Delays for delays greater than 6 hours, Long Delays for delays between 2 to 6 hours, Short Delays for delays between 1 to 2 hours and Tolerable Delays for delays less than 1 hour. Since there are flights with no delays or early departure use the labels No Delays and Early for those, respectively. Add these user friendly labels in a new column called Flight_Delays.
+# Instead of airport codes for the origin, use airport names.
+# Question:
+# Find the number of flights from each origin, which have delays that passengers cannot tolerate. Sort the data frame by the number of non-tolerable delays in a descending order. Display the first 10 records.
+
+from pyspark.sql import SparkSession
+from pyspark import SparkContext
+from pyspark.sql.types import *
+sc = SparkContext.getOrCreate()
+spark = SparkSession.builder.getOrCreate()
+
