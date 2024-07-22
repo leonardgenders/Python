@@ -618,3 +618,137 @@ for (i,j) in A:
     print("Ship %s vehicles from %s to %s." % (round(x[i,j].x),i,j))
 print("\nThe total cost is %s." % "${:,.0f}".format(m.objval))
 
+# Solution: 
+# Ship 150 vehicles from Plant 1 to Region 1.
+# Ship 0 vehicles from Plant 1 to Region 2.
+# Ship 0 vehicles from Plant 1 to Region 3.
+# Ship 300 vehicles from Plant 1 to Region 4.
+# Ship 100 vehicles from Plant 2 to Region 1.
+# Ship 200 vehicles from Plant 2 to Region 2.
+# Ship 0 vehicles from Plant 2 to Region 3.
+# Ship 0 vehicles from Plant 2 to Region 4.
+# Ship 200 vehicles from Plant 3 to Region 1.
+# Ship 0 vehicles from Plant 3 to Region 2.
+# Ship 300 vehicles from Plant 3 to Region 3.
+# Ship 0 vehicles from Plant 3 to Region 4.
+
+# The total cost is $176,050.
+
+
+# ## Problem - Assigning Buses to Routes
+
+# ## Model Formulation
+# 
+# **Sets** \
+# $P$: set of companies \{Company 1, Company 2, ..., Company 6\} \
+# $R$: set of routes \{Route 1, Route 2, ..., Route 8\} \
+# $A$: set of company-route assignment arcs
+# 
+# **Parameters** \
+# $C$: matrix of costs, where $c_{i,j}$ represents the bid amount from company $i$ for route $j$ \
+# A company can be assigned to at most two routes \
+# Exactly one company must be assigned to each route
+# 
+# **Decision Variables** \
+# $x_{i,j}$: =1 if company $i$ is assigned route $j$, =0 otherwise
+# 
+# **Objective Function and Constraints** \
+# The optimization model is formulated as
+# 
+# 
+# \begin{equation*}
+# \begin{matrix}
+# \underset{x}{\min} & \underset{(i,j) \in A}{\sum}c_{i,j}x_{i,j} &\\
+# \textrm{s.t.} & \underset{j:(i,j) \in A}{\sum}x_{i,j} & \leq & 2 & \forall i \in P \\ 
+# & \underset{i:(i,j) \in A}{\sum}x_{i,j} & = & 1 & \forall j \in R \\ 
+# & x_{i,j} & \geq & 0 & \forall (i,j) \in A \\ 
+# \end{matrix}
+# \end{equation*}
+
+
+# company assigned is the i index
+# in company constraint - only summing over the j values that are in the set of arcs
+# one company to each route constraint - 
+
+# ## Assignment Model
+from gurobipy import *
+m = Model('ex53')
+
+# Sets and Parameters
+## Set of companies
+P = {'Company 1','Company 2','Company 3','Company 4','Company 5','Company 6'}
+## Set of routes
+R = {'Route 1','Route 2','Route 3','Route 4','Route 5','Route 6','Route 7','Route 8'}
+
+
+## Set of plant-region arcs, cost data
+A, c = multidict({
+    ('Company 1','Route 2'): 8200,
+    ('Company 1','Route 3'): 7800,
+    ('Company 1','Route 4'): 5400,
+    ('Company 1','Route 6'): 3900,
+    ('Company 2','Route 1'): 7800,
+    ('Company 2','Route 2'): 8200,
+    ('Company 2','Route 4'): 6300,
+    ('Company 2','Route 6'): 3300,
+    ('Company 2','Route 7'): 4900,
+    ('Company 3','Route 2'): 4800,
+    ('Company 3','Route 6'): 4400,
+    ('Company 3','Route 7'): 5600,
+    ('Company 3','Route 8'): 3600,
+    ('Company 4','Route 3'): 8000,
+    ('Company 4','Route 4'): 5000,
+    ('Company 4','Route 5'): 6800,
+    ('Company 4','Route 7'): 6700,
+    ('Company 4','Route 8'): 4200,
+    ('Company 5','Route 1'): 7200,
+    ('Company 5','Route 2'): 6400,
+    ('Company 5','Route 4'): 3900,
+    ('Company 5','Route 5'): 6400,
+    ('Company 5','Route 6'): 2800,
+    ('Company 5','Route 8'): 3000,
+    ('Company 6','Route 1'): 7000,
+    ('Company 6','Route 2'): 5800,
+    ('Company 6','Route 3'): 7500,
+    ('Company 6','Route 4'): 4500,
+    ('Company 6','Route 5'): 5600,
+    ('Company 6','Route 7'): 6000,
+    ('Company 6','Route 8'): 4200})
+
+# Decision Variables
+## Assignments
+x = m.addVars(A, name='arc', lb=0)
+m.update()
+
+# Objective Function
+## Minimize total cost
+m.setObjective(quicksum(c[i,j]*x[i,j] for (i,j) in A), GRB.MINIMIZE)
+m.update()
+
+# Constraints
+## A company can be assigned to at most two routes
+# i index is in control of the loop and the j index is the one we want to sum over
+m.addConstrs(x.sum(i, '*') <= 2 for i in P)
+## Exactly one company must be assigned to each route
+# j index is in control of the loop and the i index is the one we want to sum over
+m.addConstrs(x.sum('*', j) == 1 for j in R)
+m.update()
+
+# Solve and Print Solution
+m.optimize()
+print("\n\n")
+for i,j in A:
+    if x[i,j].x == 1:
+        print("Assign %s to %s." % (i,j))
+print("\nThe total cost is %s." % "${:,.0f}".format(m.objval))
+# Solution:
+# Assign Company 1 to Route 3.
+# Assign Company 2 to Route 6.
+# Assign Company 2 to Route 7.
+# Assign Company 3 to Route 2.
+# Assign Company 5 to Route 4.
+# Assign Company 5 to Route 8.
+# Assign Company 6 to Route 1.
+# Assign Company 6 to Route 5.
+
+# The total cost is $40,300.
