@@ -529,3 +529,92 @@ print("The optimal investment plan is:")
 for var in m.getVars():
     print("%s = $%s" % (var.varName,round(var.x,3)))
 print("\nThe total risk is %s points." % "{:,.0f}".format(m.objval))
+
+
+########## NETWORK OPTIMIZATION ##########
+
+# ## Problem - Shipping Vehicles from Plants to Regions of the Country
+
+# ## Model Formulation
+# 
+# **Sets** \
+# $R$: set of regions \{Region 1, Region 2, Region 3, Region 4\} \
+# $P$: set of plants \{Plant 1, Plant 2, Plant 3\} \
+# $A$: set of plant-region arcs
+# 
+# **Parameters** \
+# $d$: vector of demands ($d_{Region 1} = 450$, $\ldots$, $d_{Region 4} = 300$) \
+# $b$: vector of capacities ($b_{Plant 1} = 450$, $b_{Plant 2} = 600$, $b_{Plant 3} = 500$) \
+# $C$: matrix of costs, where $c_{i,j}$ represents the shipping cost of an automobile from plant $i$ to region $j$
+# 
+# **Decision Variables** \
+# $x_{i,j}$: the number of cars sent from plant $i$ to region $j$ 
+# 
+# **Objective Function and Constraints** \
+# The optimization model is formulated as
+# 
+# 
+# \begin{equation*}
+# \begin{matrix}
+# \underset{x}{\min} & \underset{(i,j)\in A}{\sum}c_{i,j}x_{i,j} &\\
+# \textrm{s.t.} & \underset{j:(i,j) \in A}{\sum}x_{i,j} & \leq & b_i & \forall i \in P \\ 
+#  & \underset{i:(i,j) \in A}{\sum}x_{i,j} & \geq & d_i & \forall j \in R \\
+# & x_{i,j} & \geq & 0 & \forall (i,j) \in A \\ 
+# \end{matrix}
+# \end{equation*}
+
+# ## Transportation Model
+from gurobipy import *
+m = Model('Prob1')
+
+# Sets and Parameters
+## Set of regions, demand data
+R, d = multidict({
+    'Region 1': 450,
+    'Region 2': 200,
+    'Region 3': 300,
+    'Region 4': 300})
+## Set of plants, capacity data
+P, b = multidict({
+    'Plant 1': 450,
+    'Plant 2': 600,
+    'Plant 3': 500})
+## Set of plant-region arcs, cost data
+A, c = multidict({
+    ('Plant 1','Region 1'): 131,
+    ('Plant 1','Region 2'): 218,
+    ('Plant 1','Region 3'): 266,
+    ('Plant 1','Region 4'): 120,
+    ('Plant 2','Region 1'): 250,
+    ('Plant 2','Region 2'): 116,
+    ('Plant 2','Region 3'): 263,
+    ('Plant 2','Region 4'): 278,
+    ('Plant 3','Region 1'): 178,
+    ('Plant 3','Region 2'): 132,
+    ('Plant 3','Region 3'): 122,
+    ('Plant 3','Region 4'): 180})
+
+# Decision Variables
+## Number of cars shipped from plant i to region j
+x = m.addVars(A, name='arc', lb=0)
+m.update()
+
+# Objective Function
+## Minimize total cost
+m.setObjective(quicksum(c[i,j]* x[i,j] for (i,j) in A), GRB.MINIMIZE)
+m.update()
+
+# Constraints
+## Capacity constraints
+m.addConstrs(x.sum(i, '*') <= b[i] for i in P) # summing over the j indices and i is fixed
+## Demand constraints
+m.addConstrs(x.sum('*', j) >= d[j] for j in R)
+m.update()
+
+# Solve and Print Solution
+m.optimize()
+print("\n\n")
+for (i,j) in A:
+    print("Ship %s vehicles from %s to %s." % (round(x[i,j].x),i,j))
+print("\nThe total cost is %s." % "${:,.0f}".format(m.objval))
+
