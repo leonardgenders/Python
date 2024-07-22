@@ -752,3 +752,131 @@ print("\nThe total cost is %s." % "${:,.0f}".format(m.objval))
 # Assign Company 6 to Route 5.
 
 # The total cost is $40,300.
+
+
+
+# ## Problem - Shortest Walk Across the Country
+
+# ## Model Formulation
+# 
+# **Sets** \
+# $N$: set of cities {1,2,...,10}\
+# $A$: set of city pair arcs
+# 
+# **Parameters** \
+# $s$: vector of supply at each node \
+# $d$: vector of demand at each node \
+# $C$: matrix of distances, where $c_{i,j}$ is the distance from city $i$ to city $j$
+# 
+# **Decision Variables** \
+# $x_{i,j}$: = 1 if the path includes the arc $(i,j)$, = 0 otherwise
+# 
+# **Objective Function and Constraints** \
+# The optimization model is formulated as
+# 
+# 
+# \begin{equation*}
+# \begin{matrix}
+# \underset{x}{\min} & \underset{(i,j) \in A}{\sum}c_{i,j}x_{i,j} &\\
+# \textrm{s.t.} & \underset{i: (i,j) \in A}{\sum}x_{i,j} + s_j & = & \underset{k: (j,k) \in A}{\sum}x_{j,k} + d_j & \forall j \in N \\
+# & x_{i,j} & \leq & 0 & \forall (i,j) \in A \\
+# \end{matrix}
+# \end{equation*}
+
+
+# initial node is the only node that has supply, all other nodes have 0 supply
+# demand is such that the destination is the only node that has demand and is set to one, all others to 0
+
+# i is where the flow is coming from on LHS
+# j is where the flow is going to on RHS
+
+
+# ## Shortest Path Model
+from gurobipy import *
+import numpy as np
+m = Model('ex55')
+
+# Sets and Parameters
+## Set of cities, supply data, demand data
+N, s, d = multidict({
+    1: [1,0],
+    2: [0,0],
+    3: [0,0],
+    4: [0,0],
+    5: [0,0],
+    6: [0,0],
+    7: [0,0],
+    8: [0,0],
+    9: [0,0],
+    10: [0,1]})
+## Set of city-city arcs, distance data
+A, c = multidict({
+    (1,2): 70,
+    (1,3): 63,
+    (1,4): 56,
+    (2,3): 25,
+    (2,4): 19,
+    (2,5): 73,
+    (2,6): 50,
+    (2,7): 79,
+    (3,2): 25,
+    (3,4): 29,
+    (3,5): 69,
+    (3,6): 61,
+    (4,2): 19,
+    (4,3): 29,
+    (4,5): 67,
+    (4,6): 45,
+    (4,9): 85,
+    (5,6): 18,
+    (5,7): 67,
+    (5,8): 69,
+    (5,9): 54,
+    (5,10): 87,
+    (6,5): 18,
+    (6,7): 72,
+    (6,8): 52,
+    (6,9): 51,
+    (6,10): 97,
+    (7,8): 17,
+    (7,9): 31,
+    (7,10): 72,
+    (8,7): 17,
+    (8,9): 15,
+    (9,7): 31,
+    (9,8): 15,
+    (9,10): 69})
+
+
+# Decision Variables
+## Assignments (non-negativity caputred w/ lb)
+x = m.addVars(A, name='arc', lb=0)
+m.update()
+
+# Objective Function
+## Minimize total cost
+m.setObjective(quicksum(c[i,j]*x[i,j] for (i,j) in A), GRB.MINIMIZE)
+m.update()
+
+# Constraints
+## Flow balance, plural 'constraints' bc we are adding one for each node
+# LHS is sum up over all values coming in for node j
+# RHS is sum up over all values going out for node j
+m.addConstrs(x.sum('*',j) + s[j] == x.sum(j, '*') + d[j] for j in N)
+m.update()
+
+# Solve and Print Solution
+m.optimize()
+print("\n\n")
+for i,j in A:
+    if x[i,j].x == 1:
+        print("Travel from city %s to city %s." % (i,j))
+print("\nThe total distance is %s." % m.objval)
+
+# Solution:
+
+# Travel from city 1 to city 4.
+# Travel from city 4 to city 6.
+# Travel from city 6 to city 10.
+
+# The total distance is 198.0.
