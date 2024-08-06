@@ -1399,3 +1399,384 @@ for i,j in A:
 print("\nThe total travel time is %s hours." % m.objval)
 
 
+## Model Formulation - Workbook Problem
+
+# **Sets** \
+# $S$: set of service centers {Boston, Chicago, Dallas, Denver, Los Angeles, Richmond, Miami, New York, Phoenix, Pittsburgh, San Francisco, Seattle} \
+# $D$: set of demand locations {Boston, Chicago, Dallas, Denver, Los Angeles, Richmond, Miami, New York, Phoenix, Pittsburgh, San Francisco, Seattle}
+
+# **Parameters** \
+# $d_{i,j}$: distance between demand location $i$ and service center $j$ \
+# $t_i$: number of trips to demnad location $i$ \
+# must select 3 service centers
+
+# **Decision Variables** \
+# $x_{i,j}$: binary = 1 if demand location $i$ is assigned to service center $j$, = 0 otherwise \
+# $y_{j}$: binary = 1 if service center $j$ is selected, and = 0 otherwise
+
+# **Objective Function and Constraints** 
+
+# \begin{equation*}
+# \begin{matrix}
+# \displaystyle \min_{x,y} & \underset{i\in D}{\sum}\underset{j\in S}{\sum} t_i d_{i,j} x_{i,j}  &\\
+# \textrm{s.t.} & \underset{i\in D}{\sum} x_{i,j} & \leq & 11 y_{j} & \forall j \in S\\ 
+# & \underset{j \in S}{\sum} y_j & = & 3 & \\
+# & \underset{i\in D}{\sum} x_{i,j} & = & 1 & \forall j \in S\\
+# & x_{i,j} & \in & \{0,1\}, & \forall i \in D, \forall j \in S \\
+# & y_i & \in & \{0,1\}, & \forall i \in D \\
+# \end{matrix}
+# \end{equation*}
+
+## 2) Excel Prototype - Workbook Problem
+
+Screenshot of Excel Model for Example 6.5
+
+from IPython import display
+display.Image("integer_excel_model.png")
+
+Screenshot of Excel Solver for Example 6.5
+
+display.Image("integer_excel_solver.png")
+
+## 3) Python Prototype - Example 6.5
+
+# import the needed libraries
+import pandas as pd
+from gurobipy import *
+
+# read in parameters and assign sets
+r_df = pd.read_excel('M5 Integer Programming Assignment (Genders).xlsx',sheet_name='ex65-demand')
+d_df = pd.read_excel('M5 Integer Programming Assignment (Genders).xlsx',sheet_name='ex65-miles')
+d_df = d_df.set_index('FromTo') # this makes it so the 0th column is the 1st column of miles instead of city names
+S = range(d_df.shape[0]) # set of service center locations (as a range)
+D = range(d_df.shape[1]) # set of demand locations (as a range)
+n = d_df.shape[1] # number of demand locations
+
+# initialize model
+m = Model('ex65')
+
+# decision variables
+x = m.addVars(S, D, vtype="B", name="x")
+y = m.addVars(S, vtype="B", name="y")
+m.update()
+
+# objective function
+m.setObjective(quicksum(r_df.iloc[0,j]*d_df.iloc[i,j]*x[i,j] for i in S for j in D), GRB.MINIMIZE)
+m.update()
+
+# constraint to relate service center selection to assignment
+m.addConstrs(quicksum(x[i,j] for j in D) <= 11*y[i] for i in S)
+m.update()
+
+# constraint to choose exactly the allowed number service center locations
+m.addConstr(quicksum(y[j] for j in D) == 3)
+m.update()
+
+# constraint to ensure each demand location is fulfilled by exactly one service center location
+m.addConstrs(quicksum(x[i,j] for i in S) == 1 for j in D)
+m.update()
+
+# solve
+m.optimize()
+
+# print names of selected service centers
+print("\n\n")
+print("The service centers should be located in the following cities:")
+city_names = d_df.index
+for i in S:
+    if y[i].x > 0.5:
+        print(city_names[i])
+                  
+# print mapping of selected service center to demand location
+print("\n")
+for i in S: 
+    for j in D:
+        if x[i,j].x > 0.5:  
+            print(f"Demand at %s is fulfilled by %s." % (city_names[j],city_names[i]))
+
+# print objective function value
+print("\n")
+print(f"The total distance is %s miles." % m.objval)
+
+############# Work Space #############
+
+# view demand df
+r_df
+
+# view distances df
+d_df.index
+
+# view ranges / num of locations
+print(S)
+print(D)
+print(n)
+
+############# Work Space #############
+
+## 4) Python Model - Shark Tank (Distance)
+
+## Model Formulation - Shark Tank (Distance)
+
+**Sets** \
+$D$: set of demand locations {Boston, Chicago, Dallas, Denver, Los Angeles, Richmond, Miami, New York, Phoenix, Pittsburgh, San Francisco, Seattle} \
+$S$: set of potential manufacturing sites {'Abilene, TX', 'Ahwatukee Foothills, AZ',... 'Yuma, AZ'}
+
+**Parameters** \
+$d_{i,j}$: distance between manufacturing site $i$ and demand location $j$ \
+$t_j$: number of trips to demand location $j$ \
+must select 3 manufacturing sites \
+from manufacturing site to each demand location
+
+**Decision Variables** \
+$x_{i,j}$: binary = 1 if manufacturing site $i$ fulfills demand location $i$ = 0 otherwise \
+$y_i$: binary = 1 if manufactuinrg site $i$ is selected, and = 0 otherwise
+
+**Objective Function and Constraints** 
+
+\begin{equation*}
+\begin{matrix}
+\displaystyle \min_{x,y} & \underset{j \in D}{\sum}\underset{i \in S}{\sum} t_j d_{i,j} x_{i,j}  &\\
+\textrm{s.t.} & \underset{j\in D}{\sum} x_{i,j} & \leq & 997 y_{j} & \forall i \in S\\ 
+& \underset{i \in S}{\sum} y_j & = & 3 & \\
+& \underset{i\in S}{\sum} x_{i,j} & = & 1 & \forall j \in D\\
+& x_{i,j} & \in & \{0,1\}, & \forall i \in S, \forall j \in D \\
+& y_i & \in & \{0,1\}, & \forall i \in S \\
+\end{matrix}
+\end{equation*}
+
+# flipped for shark tank...
+# i in S for sites
+# j in D for demand locs
+# control each side (undersets Left, forall right)
+
+# xij dealing with both manufac sites and demand locs so need all potential sites and demand locs addressed
+# yi only dealing with whether manufacturing site i is selected, nothing in D so no j
+
+## Python Model - Shark Tank Distance
+
+# import the needed libraries
+import pandas as pd
+from gurobipy import *
+
+# read in parameters and assign sets
+r_df = pd.read_excel('M5 Integer Programming Assignment (Genders).xlsx',sheet_name='st-demand')
+d_df = pd.read_excel('M5 Integer Programming Assignment (Genders).xlsx',sheet_name='st-miles')
+d_df = d_df.set_index('FromTo') # this makes it so the 0th column is the 1st column of miles instead of city names
+S = range(d_df.shape[0]) # set of manufacturing site locations (as a range)
+D = range(d_df.shape[1]) # set of demand locations (as a range)
+n = d_df.shape[1] # number of demand locations
+
+# initialize model
+m = Model('st dist')
+
+# decision variables
+x = m.addVars(S, D, vtype="B", name="x")
+y = m.addVars(S, vtype="B", name="y")
+m.update()
+
+# objective function - minimize distance
+m.setObjective(quicksum(r_df.iloc[0,j]*d_df.iloc[i,j]*x[i,j] for i in S for j in D), GRB.MINIMIZE)
+m.update()
+
+# constraint to relate manufacturing site selection to assignment
+m.addConstrs(quicksum(x[i,j] for j in D) <= 997*y[i] for i in S)
+m.update()
+
+# constraint to choose exactly the allowed number manufacturing sites
+m.addConstr(quicksum(y[i] for i in S) == 3)
+m.update()
+
+# constraint to ensure each demand location is fulfilled by exactly one manufacturing site
+m.addConstrs(quicksum(x[i,j] for i in S) == 1 for j in D)
+m.update()
+
+# solve
+m.optimize()
+
+# print names of selected manufacturing sites
+print("\n\n")
+print("The manufacturing sites should be located in the following cities:")
+city_names = d_df.index
+for i in S:
+    if y[i].x > 0.5:
+        print(city_names[i]) 
+                  
+# print mapping of selected manufacturing site to demand location
+print("\n")
+for j in D: # for all demand locations in D
+    for i in S: # for all manufacturing sites in S
+        if x[i,j].x > 0.5:  
+            print(f"Demand at %s is fulfilled by %s." % (d_df.columns[j], city_names[i])) # need  to ref the cols not index for d_df
+
+# print objective function value
+print("\n")
+print(f"The total distance is %s miles." % m.objval)
+
+############# Work Space #############
+
+# check indices
+print(r_df.index)
+
+# check indices
+print(d_df.index)
+
+# check cols
+print(d_df.columns)
+
+# check cols
+print(r_df.columns)
+
+print(S)
+print(D)
+print(n)
+
+d_df.columns[j]
+
+############# Work Space #############
+
+## 5) Python Model - Shark Tank (Time)
+
+## Model Formulation - Shark Tank (Time)
+
+**Sets** \
+$D$: set of demand locations {Boston, Chicago, Dallas, Denver, Los Angeles, Richmond, Miami, New York, Phoenix, Pittsburgh, San Francisco, Seattle} \
+$S$: set of potential manufacturing sites {'Abilene, TX', 'Ahwatukee Foothills, AZ',... 'Yuma, AZ'}
+
+**Parameters** \
+$d_{i,j}$: time in hours between manufacturing site $i$ and demand location $j$ \
+$t_j$: number of trips to demand location $j$ \
+must select 3 manufacturing sites \
+from manufacturing site to each demand location
+
+**Decision Variables** \
+$x_{i,j}$: binary = 1 if manufacturing site $i$ fulfills demand location $i$ = 0 otherwise \
+$y_i$: binary = 1 if manufactuinrg site $i$ is selected, and = 0 otherwise
+
+**Objective Function and Constraints** 
+
+\begin{equation*}
+\begin{matrix}
+\displaystyle \min_{x,y} & \underset{j \in D}{\sum}\underset{i \in S}{\sum} t_j d_{i,j} x_{i,j}  &\\
+\textrm{s.t.} & \underset{j\in D}{\sum} x_{i,j} & \leq & 997 y_{j} & \forall i \in S\\ 
+& \underset{i \in S}{\sum} y_j & = & 3 & \\
+& \underset{i\in S}{\sum} x_{i,j} & = & 1 & \forall j \in D\\
+& x_{i,j} & \in & \{0,1\}, & \forall i \in S, \forall j \in D \\
+& y_i & \in & \{0,1\}, & \forall i \in S \\
+\end{matrix}
+\end{equation*}
+
+## Python Model - Shark Tank (Time)
+
+# import the needed libraries
+import pandas as pd
+from gurobipy import *
+
+# read in parameters and assign sets
+r_df = pd.read_excel('M5 Integer Programming Assignment (Genders).xlsx',sheet_name='st-demand')
+d_df = pd.read_excel('M5 Integer Programming Assignment (Genders).xlsx',sheet_name='st-hours')
+d_df = d_df.set_index('FromTo') # this makes it so the 0th column is the 1st column of miles instead of city names
+S = range(d_df.shape[0]) # set of manufacturing site locations (as a range)
+D = range(d_df.shape[1]) # set of demand locations (as a range)
+n = d_df.shape[1] # number of demand locations
+
+# initialize model
+m = Model('st dist')
+
+# decision variables
+x = m.addVars(S, D, vtype="B", name="x")
+y = m.addVars(S, vtype="B", name="y")
+m.update()
+
+# objective function - minimize time
+m.setObjective(quicksum(r_df.iloc[0,j]*d_df.iloc[i,j]*x[i,j] for i in S for j in D), GRB.MINIMIZE)
+m.update()
+
+# constraint to relate manufacturing site selection to assignment
+m.addConstrs(quicksum(x[i,j] for j in D) <= 997*y[i] for i in S)
+m.update()
+
+# constraint to choose exactly the allowed number manufacturing sites
+m.addConstr(quicksum(y[i] for i in S) == 3)
+m.update()
+
+# constraint to ensure each demand location is fulfilled by exactly one manufacturing site
+m.addConstrs(quicksum(x[i,j] for i in S) == 1 for j in D)
+m.update()
+
+# solve
+m.optimize()
+
+# print names of selected manufacturing sites
+print("\n\n")
+print("The manufacturing sites should be located in the following cities:")
+city_names = d_df.index
+for i in S:
+    if y[i].x > 0.5:
+        print(city_names[i]) 
+                  
+# print mapping of selected manufacturing site to demand location
+print("\n")
+for j in D: # for all demand locations in D
+    for i in S: # for all manufacturing sites in S
+        if x[i,j].x > 0.5:  
+            print(f"Demand at %s is fulfilled by %s." % (d_df.columns[j], city_names[i])) # need  to ref the cols not index for d_df
+
+# print objective function value
+print("\n")
+print(f"The total time is %s hours." % m.objval)
+
+## 6) Analysis
+
+Based on my analysis, if minimizing total distance is the most important measurement, then threee manufacturing sites should be placed in the following cities:
+
+* **Denver, CO**
+* **Los Angeles, CA**
+* **Silver Spring, MD**
+
+The demand for each of the 12 demand locations and their fulfillment from the associated manufacturing site for minimizing total distance are: \
+* Demand at **Boston, MA** is fulfilled by **Silver Spring, MD**.
+* Demand at **Chicago, IL** is fulfilled by **Silver Spring, MD**.
+* Demand at **Dallas, TX** is fulfilled by **Denver, CO**.
+* Demand at **Denver, CO** is fulfilled by **Denver, CO**.
+* Demand at **Los Angeles, CA** is fulfilled by **Los Angeles, CA**.
+* Demand at **Richmond, VA** is fulfilled by **Silver Spring, MD**.
+* Demand at **Miami, FL** is fulfilled by **Silver Spring, MD**.
+* Demand at **New York, NY** is fulfilled by **Silver Spring, MD**.
+* Demand at **Phoenix, AZ** is fulfilled by **Los Angeles, CA**.
+* Demand at **Pittsburgh, PA** is fulfilled by **Silver Spring, MD**.
+* Demand at **San Francisco, CA** is fulfilled by **Los Angeles, CA**.
+* Demand at **Seattle, WA** is fulfilled by **Los Angeles, CA**.
+
+
+The total distance is **5619332.6589485 miles**.
+
+**************************************************
+
+If minimizing total travel time is the most important measurement, then three manufacturing sites should be placed in the following cities: 
+
+* **Denver, CO**
+* **Los Angeles, CA**
+* **Wheaton, MD**
+
+The demand for each of the 12 demand locations and their fulfillment from the associated manufacturing site for minimizing total time are:
+* Demand at **Boston, MA** is fulfilled by **Wheaton, MD**.
+* Demand at **Chicago, IL** is fulfilled by **Wheaton, MD**.
+* Demand at **Dallas, TX** is fulfilled by **Denver, CO**.
+* Demand at **Denver, CO** is fulfilled by **Denver, CO**.
+* Demand at **Los Angeles, CA** is fulfilled by **Los Angeles, CA**.
+* Demand at **Richmond, VA** is fulfilled by **Wheaton, MD**.
+* Demand at **Miami, FL** is fulfilled by **Wheaton, MD**.
+* Demand at **New York, NY** is fulfilled by **Wheaton, MD**.
+* Demand at **Phoenix, AZ** is fulfilled by **Los Angeles, CA**.
+* Demand at **Pittsburgh, PA** is fulfilled by **Wheaton, MD**.
+* Demand at **San Francisco, CA** is fulfilled by **Los Angeles, CA**.
+* Demand at **Seattle, WA** is fulfilled by **Denver, CO**.
+
+
+The total time is **81845.54445252598 hours**.
+
+******************************************************
+
+Both Denver, CO and Los Angeles, CA are the best choice in the models for minimizing time and minimizing distance. The determination for the third manufacuturing site changes from Silver Spring, MD to Wheaton, MD when examining distance then time. As such, the billionaire from ABC's Shark Tank must identify which metric is more important to minimize. Interestingly, according to Google Maps, the distance from Wheaton, MD to Silver Spring MD is only 5.7 miles or 19 minutes drive time and yet the optimal solutions are different. If cost is associated to mileage, select the Shark Tank Distance model. If cost is associated to travel time, select the Shark Tank Time mdoel.
+
+
