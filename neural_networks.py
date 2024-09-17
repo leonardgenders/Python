@@ -474,3 +474,173 @@ print(f'y_vals after argmax attempt: {y_vals}')
 # print('accuracy after using argmax attempt on y values instead of y_raw format:')
 # **Q2-1-6 Calculate and print** the model's accuracy rate using the entire original dataset.
 print(sum(pred_class == y_vals)/len(pred_class)) #output is 0.437 which is closer to the epochs accuracy
+
+## Computer Vision ##
+''' 
+M3 Assignment-1
+Fashion MNIST Recognition
+'''
+
+# FREEZE CODE BEGIN
+import os
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' # supress warnings
+
+import random
+import numpy as np
+import tensorflow as tf
+
+random.seed(1693)
+np.random.seed(1693)
+tf.random.set_seed(1693)
+# FREEZE CODE END
+
+'''
+Step 0: Load libraries
+There is nothing to print during this step.
+'''
+
+# Import the necessary libraries and packages
+from tensorflow.keras import models
+from tensorflow.keras import layers
+from tensorflow.keras.utils import to_categorical
+from tensorflow.keras.layers import Dense, Dropout
+
+''' 
+Step 1: Load & prep dataframe 
+Read dataset from Fashion MNIST (NOT MNIST).
+Tip: Follow Keras documentation.
+
+**Q3-1-0 Print "0. the 16th image in the X train set: xxx" - Replace xxx with the proper value(s) using the object[x] format.
+**Q3-1-1 Print "1. the Y label of the 16th item in the original train set: xxx" - Replace xxx with the proper value(s) using the object[x] format.
+**Q3-1-2 Print "2. the actual description of the 16th item's label: xxx" - Replace xxx with the proper value(s) (e..g, 'Bag')
+Tip: Visit the documentation site for the data dictionary which provides actual descriptions of Y labels.
+Tip: You can inspect the image in Colab to make sure the class label is correct ;)
+
+'''
+# Read dataset from Fashion MNIST from Keras documentation
+from tensorflow.keras.datasets import fashion_mnist
+(train_images, train_labels), (test_images, test_labels) = fashion_mnist.load_data()
+print('test labels length: ', len(test_labels)) # check
+
+# **Q3-1-0 Print "0. the 16th image in the X train set: xxx" - Replace xxx with the proper value(s) using the object[x] format.
+print("0. the 16th image in the X train set: ", train_images[15])
+
+# **Q3-1-1 Print "1. the Y label of the 16th item in the original train set: xxx" - Replace xxx with the proper value(s) using the object[x] format.
+print("1. the Y label of the 16th item in the original train set: ",train_labels[15])
+
+# **Q3-1-2 Print "2. the actual description of the 16th item's label: xxx" - Replace xxx with the proper value(s) (e..g, 'Bag')
+# Class labels from documentation:
+class_labels = ['T-shirt/top', 'Trouser', 'Pullover', 'Dress', 'Coat', 'Sandal', 'Shirt', 'Sneaker', 'Bag', 'Ankle boot']
+print("2. the actual description of the 16th item's label: ", class_labels[train_labels[15]]) # ankle boots for train label
+
+'''
+Step 2: Prep Train vs. Test Sets
+Scale X values in both train and test sets to the range of 0 ~ 1.
+**Q3-1-3 Print "3. the scaled X values of the 16th item in the train set: xxx" - Replace xxx with the proper value(s) using the object[x] format.
+One-hot code train and test labels (i.e., Y values) using to_categorical.
+**Q3-1-4 Print "4. the one-hot coded Y label of the 16th item in the train set: xxx" - Replace xxx with the proper value(s) using the object[x] format.
+'''
+
+# Hyper-parameter Tuning Zone
+train_number_images = train_images.shape[0]
+test_number_images = test_images.shape[0]
+train_x_image_size = train_images.shape[1]
+train_y_image_size = train_images.shape[2]
+test_x_image_size = test_images.shape[1]
+test_y_image_size = test_images.shape[2]
+num_nodes_first = 5
+num_classes = 10 # 0-9
+num_epochs = 5
+batch_size = 2000
+
+# Scale X values in both train and test sets to the range of 0 ~ 1.
+train_images = train_images.astype('float32')/255
+test_images = test_images.astype('float32')/255
+
+# check
+# print(train_images[0])
+
+# **Q3-1-3 Print "3. the scaled X values of the 16th item in the train set: xxx" - Replace xxx with the proper value(s) using the object[x] format.
+print("3. the scaled X values of the 16th item in the train set: ", train_images[15])
+
+# One-hot code train and test labels (i.e., Y values) using to_categorical.
+train_labels = to_categorical(train_labels)
+test_labels = to_categorical(test_labels)
+
+# **Q3-1-4 Print "4. the one-hot coded Y label of the 16th item in the train set: xxx" - Replace xxx with the proper value(s) using the object[x] format.
+print("4. the one-hot coded Y label of the 16th item in the train set: ", train_labels[15]) # 9, matches above from question 1.
+
+'''
+Step 3: Train Model
+Create a Sequential model.
+Add a layer to flatten the input image set.
+Add a dense hidden layer with 5 nodes and relu as the activation. 
+Add a dropout layer with 15% dropout rate.
+Add a second dense hidden layer with 4 nodes and the tanh activation function.
+Add a dense output layer with the appropriate activation function and the appropriate output dimension.
+Do NOT name the model or any of the layers.
+
+**Q3-1-5 Print a summery of your model.
+
+Compile the model with
+- the adam optimizer
+- categorical_crossentropy as loss function
+- accuracy as the metric
+Train the model with 
+- the train set that you loaded from Keras
+- 5 epoches
+- batch size of 2000
+Tip: Turn off the printing of epoch-by-epoch output so it's easier to inspect your printouts.
+'''
+# Create a Sequential model
+network = models.Sequential()
+# Add a layer to flatten the input image set
+network.add(layers.Flatten(input_shape = (train_x_image_size, train_y_image_size, 1)))
+# Add a dense hidden layer with 5 nodes and relu as the activation.
+network.add(Dense(num_nodes_first, activation='relu'))
+# Add a dropout layer with 15% dropout rate
+network.add(Dropout(0.15))
+# Add a second dense hidden layer with 4 nodes and the tanh activation function
+network.add(Dense(4, activation='tanh'))
+# Add a dense output layer with the appropriate activation function and the appropriate output dimension
+network.add(Dense(num_classes, activation='softmax'))
+
+# **Q3-1-5 Print a summery of your model.
+network.summary()
+
+
+# Compile the model with:
+network.compile(optimizer='adam', # adam optimizer 
+                loss='categorical_crossentropy', # categorical_crossentropy as loss function
+                metrics=['acc']) # accuracy as the metric
+
+# Train the model with: the train set that you loaded from Keras
+history = network.fit(train_images,
+                      train_labels,
+                      epochs = num_epochs, # 5 epochs
+                      batch_size = batch_size) # batch size of 2000
+
+'''
+Step 4: Evaluate model performance
+**Q3-1-6 Print "6. train accuracy rate for the 4th epoch: xxx" - Replace xxx with the proper value(s) : xxx" - Replace xxx with the proper value(s).
+Use the model you trained to make a prediction on the 16th item in the train set.
+Tip: Use the object[x:y] format to select one record for making predictions.
+**Q3-1-7 Print "7. the predicted class label for the 16th item in the train set: xxx" - Replace xxx with the proper value(s). This should be an actual class label (e.g., 'Bag').
+'''
+
+# **Q3-1-6 Print "6. train accuracy rate for the 4th epoch: xxx" - Replace xxx with the proper value(s) : xxx" - Replace xxx with the proper value(s).
+test_loss, test_acc = network.evaluate(test_images, test_labels)
+print("6. train accuracy rate for the 4th epoch: ", history.history['acc'][3])
+# print(history.history['acc']) # 5 results
+# print(history.history['acc'][3])
+
+# Use the model you trained to make a prediction on the 16th item in the train set.
+prediction = network.predict(train_images[15:16])
+print(prediction) # 10 results --> try to select the largest with argmax? largest val is 0.25249064 at index position 9
+prediction_val = np.argmax(prediction)
+print(prediction_val) # after argmax --> val is 9
+print(class_labels[prediction_val]) # should print class for index 9 which is Ankle boot
+
+# Tip: Use the object[x:y] format to select one record for making predictions.
+# **Q3-1-7 Print "7. the predicted class label for the 16th item in the train set: xxx" - Replace xxx with the proper value(s). This should be an actual class label (e.g., 'Bag')
+print("7. the predicted class label for the 16th item in the train set: ", class_labels[prediction_val])
